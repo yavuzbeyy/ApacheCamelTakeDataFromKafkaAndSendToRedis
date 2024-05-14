@@ -45,6 +45,13 @@
     <version>3.18.4</version> 
 </dependency>
 
+<dependency>
+    <groupId>org.apache.camel</groupId>
+    <artifactId>camel-http</artifactId>
+    <version>3.18.4</version>
+</dependency>
+
+
     <!-- Camel Core -->
     <dependency>
       <groupId>org.apache.camel</groupId>
