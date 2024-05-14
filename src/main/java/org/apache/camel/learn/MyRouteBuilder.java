@@ -1,47 +1,47 @@
 package org.apache.camel.learn;
 
 import org.apache.camel.builder.RouteBuilder;
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
 
-/**
- * A Camel Java DSL Router
- */
 public class MyRouteBuilder extends RouteBuilder {
 
-    /**
-     * Let's configure the Camel routing rules using Java code...
-     */
-    public void configure() {
+    @Override
+    public void configure() throws Exception {
+        from("kafka:192.168.20.104.dbo.UploadImages?brokers=localhost:59092")
+            .process(exchange -> {
+                String message = exchange.getIn().getBody(String.class);
+               // System.out.println("Received message from Kafka: " + message);
 
-        // here is a sample which processes the input files
-        // (leaving them in place - see the 'noop' flag)
-        // then performs content based routing on the message using XPath
-        /*from("file:src/data?noop=true")
-            .choice()
-                .when(xpath("/person/city = 'London'"))
-                    .log("UK message")
-                    .to("file:target/messages/uk")
-                .otherwise()
-                    .log("Other message")
-                    .to("file:target/messages/others");
-					
-		 from("kafka:localhost:59092?topic=192.168.20.104.dbo.UploadImages")
-            .log("Received message from Kafka: ${body}");
-    }*/
-	
-	from("kafka:192.168.20.104.dbo.UploadImages?brokers=localhost:59092")
-    .process(exchange -> {
-        // Kafka'dan gelen mesajı işle
-        String message = exchange.getIn().getBody(String.class);
-        // İşlenen mesajı logla
-        System.out.println("Received message from Kafka: " + message);
-        // Mesajı işleme, veritabanına yazma, vb. işlemleri burada gerçekleştir
-    });
+                try {
+                    if (message != null) { // message null değilse işlem yap
+                        // JSON mesajını işle
+                        JSONParser parser = new JSONParser();
+                        JSONObject jsonMessage = (JSONObject) parser.parse(message);
+                        JSONObject payload = (JSONObject) jsonMessage.get("payload");
 
-	
-	/*public void configure() {
-       from("direct:start")
-    .to("http://localhost:5062/api/Author/ListAll")
-    .log("Received response from API: ${body}");*/
+                        // "after" ve "before" alanlarını kontrol et
+                        JSONObject after = (JSONObject) payload.getOrDefault("after", null);
+                        JSONObject before = (JSONObject) payload.getOrDefault("before", null);
 
+                        if (after != null && after.containsKey("FileKey")) {
+                            // Redise Ekleme İşlemi
+                            String fileId = (String) after.get("FileKey");
+                            String filePath = (String) after.get("FilePath");
+                            System.out.println("FileKey: " + fileId + ",  FilePath: " + filePath);
+                        } else if (before != null && before.containsKey("FileKey")) {
+                            // Redisten Silme İşlemi
+                            String fileKey = (String) before.get("FileKey");
+                            System.out.println("Deleted FileKey: " + fileKey);
+                        } else {
+                            System.out.println("Invalid message format: 'after' or 'before' field is missing");
+                        }
+                    } else {
+                        System.out.println("Received message is null");
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            });
     }
 }
